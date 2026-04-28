@@ -4,7 +4,8 @@ from pypdf import PdfReader
 import re
 
 # --- 1. CONFIGURATION ---
-API_KEY = "AIzaSyAinDw2lNQjFzVT1U1krEOr15-I7OTbZbE"
+import os
+API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=API_KEY)
 # Using Gemini 3 for 2026 compatibility
 model = genai.GenerativeModel('gemini-3-flash-preview')
