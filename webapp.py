@@ -5,7 +5,10 @@ import re
 
 # --- 1. CONFIGURATION ---
 import os
-API_KEY = os.getenv("GEMINI_API_KEY")
+import streamlit as st
+import google.generativeai as genai
+
+API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
 # Using Gemini 3 for 2026 compatibility
 model = genai.GenerativeModel('gemini-3-flash-preview')
