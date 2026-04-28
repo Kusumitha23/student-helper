@@ -36,7 +36,12 @@ uploaded_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="col
 
 if uploaded_file:
     reader = PdfReader(uploaded_file)
-    raw_text = "".join([page.extract_text() for page in reader.pages])[:8000]
+    raw_text = ""
+for page in reader.pages:
+    text = page.extract_text()
+    if text:
+        raw_text += text
+raw_text = raw_text[:8000]
 
     # Menu Buttons
     st.write("---")
