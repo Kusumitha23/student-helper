@@ -48,8 +48,7 @@ if uploaded_file is not None:
 if not uploaded_file:
     st.info("Please upload a PDF first")
     st.stop()
-p = line.split('|')
-if len(p) == 3:
+
 
     # Menu Buttons
     st.write("---")
