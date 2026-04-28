@@ -11,7 +11,7 @@ import google.generativeai as genai
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
 # Using Gemini 3 for 2026 compatibility
-model = genai.GenerativeModel('gemini-3-flash-preview')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # --- 2. SESSION STATE ---
 if "quiz_data" not in st.session_state:
@@ -42,6 +42,8 @@ for page in reader.pages:
     if text:
         raw_text += text
 raw_text = raw_text[:8000]
+p = line.split('|')
+if len(p) == 3:
 
     # Menu Buttons
     st.write("---")
