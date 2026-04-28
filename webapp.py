@@ -1,38 +1,44 @@
 import streamlit as st
 import google.generativeai as genai
 from pypdf import PdfReader
-import re
 
-# --- 1. CONFIGURATION ---
+# ---------------- CONFIG ----------------
 import os
-import streamlit as st
-import google.generativeai as genai
 
-API_KEY = st.secrets["GEMINI_API_KEY"]
+API_KEY = st.secrets["GEMINI_API_KEY"]  # use Streamlit secrets (IMPORTANT)
 genai.configure(api_key=API_KEY)
-# Using Gemini 3 for 2026 compatibility
-model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- 2. SESSION STATE ---
-if "quiz_data" not in st.session_state:
-    st.session_state.quiz_data = []
+model = genai.GenerativeModel("gemini-1.5-flash")
+
+# ---------------- SESSION STATE ----------------
 if "current_mode" not in st.session_state:
     st.session_state.current_mode = None
 
-# --- 2. STYLING (Image 1 & 2 Vibe) ---
+if "quiz_data" not in st.session_state:
+    st.session_state.quiz_data = []
+
+# ---------------- PAGE SETUP ----------------
 st.set_page_config(page_title="AI Study Helper", layout="wide")
+
 st.markdown("""
     <style>
-    .main { background: linear-gradient(135deg, #090616 0%, #1e2060 100%); color: white; }
-    .result-container { background-color: white; border-radius: 15px; padding: 30px; color: #1e2060; }
-    .stRadio > div { background: #f0f2f6; padding: 10px; border-radius: 10px; margin-bottom: 5px; }
+    .main {
+        background: linear-gradient(135deg, #090616 0%, #1e2060 100%);
+        color: white;
+    }
+    .result-container {
+        background-color: white;
+        border-radius: 15px;
+        padding: 20px;
+        color: black;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🎓 Help yourself better learning")
+st.title("🎓 AI Study Helper")
 
-# PDF Upload
-uploaded_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="collapsed")
+# ---------------- FILE UPLOAD ----------------
+uploaded_file = st.file_uploader("Upload PDF", type="pdf")
 
 raw_text = ""
 
@@ -45,70 +51,131 @@ if uploaded_file is not None:
             raw_text += text
 
     raw_text = raw_text[:8000]
-if not uploaded_file:
-    st.info("Please upload a PDF first")
-    st.stop()
 
+# ---------------- BUTTONS (ALWAYS VISIBLE) ----------------
+st.write("---")
 
-    # Menu Buttons
-    st.write("---")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1: sum_btn = st.button("📄 Summarize")
-    with col2: quiz_btn = st.button("📝 Generate Quiz")
-    with col3: target_lang = st.selectbox("Lang", ["Telugu", "Spanish", "Hindi"], label_visibility="collapsed")
-    with col4: trans_btn = st.button("🌐 Translate")
+col1, col2, col3, col4 = st.columns(4)
 
-    # --- RESULT LOGIC ---
+with col1:
+    sum_btn = st.button("📄 Summarize")
+
+with col2:
+    quiz_btn = st.button("📝 Generate Quiz")
+
+with col3:
+    target_lang = st.selectbox("Language", ["Telugu", "Spanish", "Hindi"])
+
+with col4:
+    trans_btn = st.button("🌐 Translate")
+
+# ---------------- ACTION LOGIC ----------------
+if uploaded_file is not None and raw_text:
+
+    # -------- SUMMARIZE --------
     if sum_btn:
         st.session_state.current_mode = "summary"
+
         with st.spinner("Summarizing..."):
-            res = model.generate_content(f"Summarize this: {raw_text}")
+            res = model.generate_content("Summarize this:\n" + raw_text)
             st.session_state.summary_text = res.text
 
+    # -------- TRANSLATE --------
     if trans_btn:
         st.session_state.current_mode = "translate"
+
         with st.spinner("Translating..."):
-            res = model.generate_content(f"Explain this in simple {target_lang}: {raw_text}")
+            res = model.generate_content(
+                f"Explain this in simple {target_lang}:\n{raw_text}"
+            )
             st.session_state.translate_text = res.text
             st.session_state.translate_lang = target_lang
 
+    # -------- QUIZ --------
     if quiz_btn:
         st.session_state.current_mode = "quiz"
-        with st.spinner("Creating Interactive Quiz..."):
-            prompt = f"Create 3 MCQs. Format: Question | Opt1, Opt2, Opt3 | Correct. Text: {raw_text}"
+
+        with st.spinner("Generating Quiz..."):
+            prompt = f"""
+Create exactly 3 MCQs.
+
+Format:
+Question | Option1, Option2, Option3 | CorrectOption
+
+Text:
+{raw_text}
+"""
+
             res = model.generate_content(prompt)
-            
+
             parsed = []
-            for line in res.text.strip().split('\n'):
-                if "|" in line:
-                    p = line.split('|')
-                    parsed.append({"q": p[0], "o": p[1].split(','), "a": p[2].strip()})
+
+            if res and res.text:
+                for line in res.text.split("\n"):
+                    if "|" in line:
+                        parts = line.split("|")
+
+                        if len(parts) == 3:
+                            parsed.append({
+                                "q": parts[0].strip(),
+                                "o": [x.strip() for x in parts[1].split(",")],
+                                "a": parts[2].strip()
+                            })
+
             st.session_state.quiz_data = parsed
 
-    # --- DISPLAY PERSISTENT RESULTS ---
-    if st.session_state.current_mode == "summary" and "summary_text" in st.session_state:
-        st.markdown(f'<div class="result-container"><h2>SUMMARIZED</h2>{st.session_state.summary_text}</div>', unsafe_allow_html=True)
-        
-    elif st.session_state.current_mode == "translate" and "translate_text" in st.session_state:
-        lang = st.session_state.translate_lang
-        st.markdown(f'<div class="result-container"><h2>TRANSLATED ({lang})</h2>{st.session_state.translate_text}</div>', unsafe_allow_html=True)
+else:
+    st.info("📄 Please upload a PDF to start")
 
-    elif st.session_state.current_mode == "quiz" and st.session_state.quiz_data:
-        st.markdown('<div class="result-container"><h2 style="color:#9d4edd">INTERACTIVE QUIZ</h2>', unsafe_allow_html=True)
+# ---------------- OUTPUT DISPLAY ----------------
+
+# -------- SUMMARY --------
+if st.session_state.current_mode == "summary" and "summary_text" in st.session_state:
+    st.markdown(
+        f"<div class='result-container'><h3>SUMMARY</h3>{st.session_state.summary_text}</div>",
+        unsafe_allow_html=True
+    )
+
+# -------- TRANSLATE --------
+elif st.session_state.current_mode == "translate" and "translate_text" in st.session_state:
+    st.markdown(
+        f"<div class='result-container'><h3>TRANSLATION ({st.session_state.translate_lang})</h3>{st.session_state.translate_text}</div>",
+        unsafe_allow_html=True
+    )
+
+# -------- QUIZ --------
+elif st.session_state.current_mode == "quiz":
+
+    if st.session_state.quiz_data:
+
+        st.markdown("<div class='result-container'><h3>QUIZ</h3>", unsafe_allow_html=True)
+
         for i, item in enumerate(st.session_state.quiz_data):
-            st.radio(f"Q{i+1}: {item['q']}", item['o'], key=f"quiz_q_{i}")
-        
+            st.radio(
+                f"Q{i+1}: {item['q']}",
+                item["o"],
+                key=f"q_{i}"
+            )
+
         if st.button("Check Answers"):
+
             score = 0
+
             for i, item in enumerate(st.session_state.quiz_data):
-                user_ans = st.session_state.get(f"quiz_q_{i}", "")
-                if user_ans.strip() == item['a'].strip():
-                    st.success(f"Q{i+1}: Correct! ✅")
+                user_ans = st.session_state.get(f"q_{i}")
+
+                if user_ans == item["a"]:
+                    st.success(f"Q{i+1} Correct ✅")
                     score += 1
                 else:
-                    st.error(f"Q{i+1}: Incorrect. The correct answer was {item['a']} ❌")
-            
-            st.metric("Final Score", f"{score} / {len(st.session_state.quiz_data)}")
+                    st.error(f"Q{i+1} Wrong ❌ (Ans: {item['a']})")
+
+            st.metric("Score", f"{score}/{len(st.session_state.quiz_data)}")
+
             if score == len(st.session_state.quiz_data):
                 st.balloons()
-        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    else:
+        st.warning("No quiz generated. Try again.")
