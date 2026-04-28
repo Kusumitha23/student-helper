@@ -34,14 +34,20 @@ st.title("🎓 Help yourself better learning")
 # PDF Upload
 uploaded_file = st.file_uploader("Upload PDF", type="pdf", label_visibility="collapsed")
 
-if uploaded_file:
+raw_text = ""
+
+if uploaded_file is not None:
     reader = PdfReader(uploaded_file)
-    raw_text = ""
-for page in reader.pages:
-    text = page.extract_text()
-    if text:
-        raw_text += text
-raw_text = raw_text[:8000]
+
+    for page in reader.pages:
+        text = page.extract_text()
+        if text:
+            raw_text += text
+
+    raw_text = raw_text[:8000]
+if not uploaded_file:
+    st.info("Please upload a PDF first")
+    st.stop()
 p = line.split('|')
 if len(p) == 3:
 
